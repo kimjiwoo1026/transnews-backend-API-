@@ -4,7 +4,7 @@
 
 ---
 
-## 프로젝트 구조
+# 프로젝트 구조
 ```
 TRANSNEWS-BACKEND_API
 │
@@ -81,7 +81,7 @@ pip install -r requirements.txt
 
 ---
 
-## 실행 방법
+# 실행 방법
 
 ### FastAPI 서버 실행
 ```bash
