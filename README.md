@@ -34,12 +34,12 @@ Client -> FastAPI Backend ->LLM Server
 
 -------
 # tech stack
-
+```
 Backend Framework- FastAPI, Python 3.11
 Data Processing- BeautifulSoup4, Feedparser
 HTTP Client- HTTPX
 환경 변수 관리- python-dotenv
-
+```
 -----------
 # 설정
 루트 디렉토리에 .env 파일을 생성합니다. LLM 서버는 뉴스 요약 및 번역 처리를 담당합니다.
