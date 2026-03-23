@@ -4,6 +4,8 @@ import logging
 import httpx
 from bs4 import BeautifulSoup
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,10 +22,10 @@ class CrawlerService:
     async def crawl_article(self, url: str, retries: int = 3) -> str | None:
         for attempt in range(1, retries + 1):
             try:
-                logger.info("Crawling attempt %s/%s: %s", attempt, retries, url)
+                logger.info("크롤링 시도 %s/%s - url=%s", attempt, retries, url)
 
                 async with httpx.AsyncClient(
-                    timeout=10.0,
+                    timeout=settings.REQUEST_TIMEOUT,
                     follow_redirects=True,
                 ) as client:
                     response = await client.get(url, headers=self.headers)
@@ -40,7 +42,7 @@ class CrawlerService:
                 )
 
                 if article is None:
-                    logger.warning("Article container not found: %s", url)
+                    logger.warning("본문 영역 탐색 실패 - url=%s", url)
                     continue
 
                 paragraphs = article.find_all("p")
@@ -51,15 +53,35 @@ class CrawlerService:
                 ).strip()
 
                 if len(content) >= 100:
+                    logger.info("크롤링 성공 - url=%s, length=%d", url, len(content))
                     return content
 
-                logger.warning("Extracted content too short: %s", url)
+                logger.warning("본문 길이 부족 - url=%s, length=%d", url, len(content))
 
+            except httpx.HTTPStatusError as e:
+                logger.warning(
+                    "HTTP 상태 오류 - attempt=%s, url=%s, status=%s",
+                    attempt,
+                    url,
+                    e.response.status_code,
+                )
+            except httpx.RequestError as e:
+                logger.warning(
+                    "HTTP 요청 실패 - attempt=%s, url=%s, error=%s",
+                    attempt,
+                    url,
+                    str(e),
+                )
             except Exception as e:
-                logger.warning("Crawling failed on attempt %s: %s", attempt, str(e))
+                logger.exception(
+                    "크롤링 중 예기치 못한 오류 - attempt=%s, url=%s, error=%s",
+                    attempt,
+                    url,
+                    str(e),
+                )
 
             if attempt < retries:
                 await asyncio.sleep(1)
 
-        logger.error("Final crawl failed: %s", url)
+        logger.error("최종 크롤링 실패 - url=%s", url)
         return None

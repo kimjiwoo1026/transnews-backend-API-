@@ -1,7 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.models import BaseResponse
 from app.services.crawler_service import CrawlerService
@@ -19,38 +18,29 @@ llm_proxy_service = LLMProxyService()
 async def news_summary_pipeline(
     url: str = Query(..., description="기사 원문 URL"),
 ):
-    try:
-        content = await crawler_service.crawl_article(url)
+    logger.info("뉴스 요약 파이프라인 요청 - url=%s", url)
 
-        if not content:
-            return JSONResponse(
-                status_code=400,
-                content=BaseResponse(
-                    status="FAILURE",
-                    message="기사 본문 추출 실패",
-                    data=None,
-                ).model_dump(),
-            )
+    content = await crawler_service.crawl_article(url)
 
-        summary = await llm_proxy_service.summarize(content)
+    if not content:
+        logger.warning("파이프라인 본문 추출 실패 - url=%s", url)
+        raise HTTPException(status_code=400, detail="기사 본문 추출 실패")
 
-        return BaseResponse(
-            status="SUCCESS",
-            message="뉴스 요약 파이프라인 성공",
-            data={
-                "url": url,
-                "content": content,
-                "summary": summary,
-            },
-        )
+    summary = await llm_proxy_service.summarize(content)
 
-    except Exception as e:
-        logger.exception("Pipeline failed")
-        return JSONResponse(
-            status_code=500,
-            content=BaseResponse(
-                status="FAILURE",
-                message=f"파이프라인 처리 실패: {str(e)}",
-                data=None,
-            ).model_dump(),
-        )
+    logger.info(
+        "뉴스 요약 파이프라인 성공 - url=%s, content_length=%d, summary_length=%d",
+        url,
+        len(content),
+        len(summary),
+    )
+
+    return BaseResponse(
+        status="SUCCESS",
+        message="뉴스 요약 파이프라인 성공",
+        data={
+            "url": url,
+            "content": content,
+            "summary": summary,
+        },
+    )
