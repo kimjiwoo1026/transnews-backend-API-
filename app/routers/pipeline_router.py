@@ -31,6 +31,7 @@ async def news_summary_pipeline(
             "title": article_dict.get("title") or "제목 정보 없음",
             "content": article_dict.get("content") or "본문 내용 없음",
             "summary": "AI 요약 생성 중...", 
+            "original_url": str(url),
             "url": str(url),
             "source": article_dict.get("domain") or "news",
             "language": "ko",
