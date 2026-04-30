@@ -4,6 +4,7 @@ import re
 from urllib.parse import urlparse
 
 import httpx
+import trafilatura
 from bs4 import BeautifulSoup
 
 from app.config import settings
@@ -23,7 +24,9 @@ class CrawlerService:
                 "text/html,application/xhtml+xml,application/xml;q=0.9,"
                 "image/avif,image/webp,*/*;q=0.8"
             ),
+            "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
         }
+
         self.client = httpx.AsyncClient(
             timeout=settings.REQUEST_TIMEOUT,
             follow_redirects=True,
@@ -34,19 +37,74 @@ class CrawlerService:
         await self.client.aclose()
 
     def _clean_text(self, text: str) -> str:
-        text = re.sub(
-            r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
-            "",
-            text,
-        )
+        text = re.sub(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", "", text)
         text = re.sub(r"무단\s*전재\s*및\s*재배포\s*금지", "", text)
         text = re.sub(r"저작권자\s*\(c\).*", "", text)
+        text = re.sub(r"Copyright.*", "", text, flags=re.I)
         text = re.sub(r"\s+", " ", text).strip()
         return text
 
-    async def crawl_article(self, url: str, retries: int = 3) -> dict | None:
-        domain = urlparse(url).netloc
+    def _extract_title(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
 
+        og_title = soup.find("meta", property="og:title")
+        if og_title and og_title.get("content"):
+            return og_title["content"].strip()
+
+        title_tag = soup.find("title")
+        if title_tag:
+            return title_tag.get_text(strip=True)
+
+        return "제목 없음"
+
+    def _extract_content_with_bs4(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+
+        article_box = (
+            soup.find("article", id="dic_area")
+            or soup.find("div", id="dic_area")
+            or soup.find("article")
+            or soup.find("div", id="newsct_article")
+            or soup.find("div", id="articleBodyContents")
+            or soup.find("div", id="harmonyContainer")
+            or soup.find("section", class_=re.compile(r"article|news|content|view|body", re.I))
+            or soup.find("div", id=re.compile(r"article|news|content|view|body", re.I))
+            or soup.find("div", class_=re.compile(r"article|news|content|view|body", re.I))
+        )
+
+        if article_box:
+            for tag in article_box(["script", "style", "iframe", "ins", "aside", "button"]):
+                tag.decompose()
+
+            return self._clean_text(article_box.get_text(" ", strip=True))
+
+        paragraphs = soup.find_all("p")
+        raw_content = " ".join(
+            p.get_text(" ", strip=True)
+            for p in paragraphs
+            if p.get_text(strip=True)
+        )
+
+        return self._clean_text(raw_content)
+
+    def _extract_content(self, html: str, url: str) -> str:
+        content = trafilatura.extract(
+            html,
+            url=url,
+            include_comments=False,
+            include_tables=False,
+            favor_recall=True,
+        )
+
+        if content:
+            content = self._clean_text(content)
+
+        if content and len(content) >= 100:
+            return content
+
+        return self._extract_content_with_bs4(html)
+
+    async def crawl_article(self, url: str, retries: int = 3) -> dict | None:
         for attempt in range(1, retries + 1):
             try:
                 logger.info("크롤링 시도 %s/%s - url=%s", attempt, retries, url)
@@ -54,55 +112,28 @@ class CrawlerService:
                 response = await self.client.get(url)
                 response.raise_for_status()
 
-                soup = BeautifulSoup(response.text, "html.parser")
+                final_url = str(response.url)
+                domain = urlparse(final_url).netloc
+                html = response.text
 
-                title_tag = soup.find("title")
-                title = title_tag.get_text(strip=True) if title_tag else ""
+                title = self._extract_title(html)
+                content = self._extract_content(html, final_url)
 
-                article_box = (
-                    soup.find("article")
-                    or soup.find("div", id=re.compile(r"articleBody|newsct_article|articeBody"))
-                    or soup.find("div", class_=re.compile(r"article_body|view-content"))
-                    or soup.find("div", class_="article-view-content-div")
-                )
+                if len(content) >= 100:
+                    logger.info("크롤링 성공 - url=%s, length=%d", final_url, len(content))
 
-                paragraphs = article_box.find_all("p") if article_box else soup.find_all("p")
-
-                raw_content = " ".join(
-                    p.get_text(" ", strip=True)
-                    for p in paragraphs
-                    if p.get_text(strip=True)
-                )
-                clean_content = self._clean_text(raw_content)
-
-                if len(clean_content) >= 100:
-                    logger.info("크롤링 성공 - url=%s, length=%d", url, len(clean_content))
                     return {
-                        "url": url,
-                        "domain": domain,
                         "title": title,
-                        "content": clean_content,
+                        "url": final_url,
+                        "domain": domain,
+                        "content": content,
                     }
 
-                logger.warning("본문 길이 부족 - url=%s, length=%d", url, len(clean_content))
+                logger.warning("본문 길이 부족 - url=%s, length=%d", final_url, len(content))
 
-            except httpx.HTTPStatusError as e:
-                logger.warning(
-                    "HTTP 상태 오류 - attempt=%s, url=%s, status=%s",
-                    attempt,
-                    url,
-                    e.response.status_code,
-                )
-            except httpx.RequestError as e:
-                logger.warning(
-                    "HTTP 요청 실패 - attempt=%s, url=%s, error=%s",
-                    attempt,
-                    url,
-                    str(e),
-                )
             except Exception as e:
-                logger.exception(
-                    "크롤링 중 예기치 못한 오류 - attempt=%s, url=%s, error=%s",
+                logger.warning(
+                    "크롤링 실패 - attempt=%s, url=%s, error=%s",
                     attempt,
                     url,
                     str(e),
