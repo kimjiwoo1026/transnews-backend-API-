@@ -1,5 +1,6 @@
 import logging
 import httpx
+from app.config import settings
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from app.services.crawler_service import CrawlerService
@@ -31,7 +32,17 @@ async def news_summary_pipeline(url: str = Query(..., description="기사 원문
         }
         
         try:
-            await client.post("http://localhost:8001/api/v1/crawl-runs", json=payload, timeout=10.0)
+            response = await client.post(f"{settings.MAIN_SERVER_URL}/api/v1/crawl-runs", json=payload, timeout=10.0)
+            
+            if response.status_code == 409:
+                return BaseResponse(status="SUCCESS", message="이미 존재하는 데이터입니다.", data=payload)
+            
+            response.raise_for_status()
             return BaseResponse(status="SUCCESS", message="성공", data=payload)
+            
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                return BaseResponse(status="SUCCESS", message="이미 존재함", data=payload)
+            raise HTTPException(status_code=e.response.status_code, detail=f"전송 실패: {e.response.text}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"전송 실패: {str(e)}")

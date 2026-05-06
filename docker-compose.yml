@@ -1,11 +1,13 @@
 version: "3.9"
 
 services:
-  transnews-api:
+  crawling-server:
     build: .
-    container_name: transnews-api
+    container_name: transnews-crawling-server
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
     env_file:
       - .env
     restart: unless-stopped
