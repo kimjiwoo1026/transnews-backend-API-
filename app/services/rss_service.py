@@ -31,10 +31,8 @@ async def get_news(keyword: str) -> list[dict]:
             google_link = getattr(entry, "link", "")
             article_link = decode_google_news_url(google_link)
             crawled = await crawler.crawl_article(article_link)
-            
             source_info = getattr(entry, "source", {}) or {}
-            source_name = source_info.get("title") if isinstance(source_info, dict) else "알 수 없음"
-            
+            source_name = source_info.get("title") if isinstance(source_info, dict) else "Unknown"
             return {
                 "title": getattr(entry, "title", ""),
                 "link": google_link,
@@ -51,3 +49,20 @@ async def get_news(keyword: str) -> list[dict]:
     except Exception as e:
         logger.error(f"Error: {e}")
         return []
+
+async def get_news_stats(keyword: str) -> dict:
+    cleaned_keyword = keyword.strip()
+    if not cleaned_keyword:
+        return {"total_count": 0, "min_count": 0, "max_count": 0}
+
+    rss_url = f"https://news.google.com/rss/search?q={quote(cleaned_keyword)}&hl=ko&gl=KR&ceid=KR:ko"
+    
+    feed = feedparser.parse(rss_url)
+    total = len(feed.entries)
+
+    return {
+        "keyword": cleaned_keyword,
+        "total_count": total,
+        "min_count": min(10, total),
+        "max_count": total,
+    }

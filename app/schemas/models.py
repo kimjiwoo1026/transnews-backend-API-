@@ -1,4 +1,4 @@
-from typing import Any, Optional, List
+from typing import Any, Optional
 from pydantic import BaseModel
 
 class NewsItem(BaseModel):
@@ -9,9 +9,9 @@ class NewsItem(BaseModel):
     source_name: str
     source_url: Optional[str] = None
     published: str
-    content: str  
+    content: str
 
 class BaseResponse(BaseModel):
     status: str
     message: str
-    data: Optional[List[NewsItem]] = None
+    data: Optional[Any] = None
