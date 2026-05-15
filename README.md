@@ -86,6 +86,11 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+### Docker로 실행
+```bash
+docker-compose up --build
+```
+
 ### API 문서 확인
 브라우저에서 아래 주소 접속
 
