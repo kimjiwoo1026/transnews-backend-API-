@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
 from app.schemas.models import BaseResponse
-from app.services.crawler_service import CrawlerService
+from app.services.crawler_service import crawler_service
 
 router = APIRouter(prefix="", tags=["crawl"])
-crawler_service = CrawlerService()
 
 @router.get("/crawl", response_model=BaseResponse)
 async def crawl_article(url: str = Query(..., description="크롤링할 기사 URL")):

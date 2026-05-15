@@ -3,7 +3,7 @@ import logging
 from urllib.parse import quote
 import feedparser
 from googlenewsdecoder import gnewsdecoder
-from app.services.crawler_service import CrawlerService
+from app.services.crawler_service import crawler_service
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +22,14 @@ async def get_news(keyword: str) -> list[dict]:
         return []
 
     rss_url = f"https://news.google.com/rss/search?q={quote(cleaned_keyword)}&hl=ko&gl=KR&ceid=KR:ko"
-    crawler = CrawlerService()
-    
+
     try:
-        feed = feedparser.parse(rss_url)
+        feed = await asyncio.to_thread(feedparser.parse, rss_url)
 
         async def process_entry(entry):
             google_link = getattr(entry, "link", "")
             article_link = decode_google_news_url(google_link)
-            crawled = await crawler.crawl_article(article_link)
+            crawled = await crawler_service.crawl_article(article_link)
             source_info = getattr(entry, "source", {}) or {}
             source_name = source_info.get("title") if isinstance(source_info, dict) else "Unknown"
             return {
@@ -56,8 +55,8 @@ async def get_news_stats(keyword: str) -> dict:
         return {"total_count": 0, "min_count": 0, "max_count": 0}
 
     rss_url = f"https://news.google.com/rss/search?q={quote(cleaned_keyword)}&hl=ko&gl=KR&ceid=KR:ko"
-    
-    feed = feedparser.parse(rss_url)
+
+    feed = await asyncio.to_thread(feedparser.parse, rss_url)
     total = len(feed.entries)
 
     return {

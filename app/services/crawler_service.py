@@ -88,9 +88,9 @@ class CrawlerService:
                 response.raise_for_status()
                 final_url = str(response.url)
                 html = response.text
-                
+
                 content = self._extract_content(html, final_url)
-                
+
                 if len(content) > 30:
                     return {
                         "title": self._extract_title(html),
@@ -101,3 +101,6 @@ class CrawlerService:
             except Exception:
                 if attempt < retries: await asyncio.sleep(1)
         return None
+
+
+crawler_service = CrawlerService()
