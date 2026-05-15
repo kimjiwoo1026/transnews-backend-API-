@@ -1,6 +1,6 @@
 # TransNews Backend API
 
-키워드 기반 뉴스 검색과 기사 본문 크롤링/요약, 한→영 번역을 하나의 FastAPI 앱으로 통합한 프로젝트
+키워드 기반 뉴스 검색과 기사 본문 크롤링을 하나의 FastAPI 앱으로 통합한 프로젝트
 
 ---
 
@@ -19,8 +19,7 @@ TRANSNEWS-BACKEND_API
 │  │
 │  ├─ services
 │  │   ├─ rss_service.py
-│  │   ├─ crawler_service.py
-│  │   └─ llm_proxy_service.py
+│  │   └─ crawler_service.py
 │  │
 │  └─ schemas
 │      └─ models.py
@@ -30,7 +29,7 @@ TRANSNEWS-BACKEND_API
 └─ README.md
 ```
 
-Client -> FastAPI Backend ->LLM Server
+Client -> FastAPI Backend -> Main Server
 
 -------
 # tech stack
@@ -42,12 +41,11 @@ HTTP Client- HTTPX
 ```
 -----------
 # 설정
-루트 디렉토리에 .env 파일을 생성합니다. LLM 서버는 뉴스 요약 및 번역 처리를 담당합니다.
+루트 디렉토리에 .env 파일을 생성합니다.
 ```
-LLM_SERVER_URL=http://127.0.0.1:8001
-LLM_SUMMARY_PATH=/summary
-LLM_TRANSLATE_PATH=/translate
+MAIN_SERVER_URL=http://서버주소:포트
 REQUEST_TIMEOUT=15
+LOG_LEVEL=INFO
 ```
 ----------
 # 설치
