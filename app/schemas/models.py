@@ -10,6 +10,7 @@ class NewsItem(BaseModel):
     source_url: Optional[str] = None
     published: str
     content: str
+    language: str = "ko"
 
 class BaseResponse(BaseModel):
     status: str

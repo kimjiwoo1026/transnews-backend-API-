@@ -60,6 +60,21 @@ class CrawlerService:
         title_tag = soup.find("title")
         return title_tag.get_text(strip=True) if title_tag else "제목 없음"
 
+    def _extract_metadata(self, html: str) -> dict:
+        soup = BeautifulSoup(html, "html.parser")
+
+        def get_meta(*names):
+            for name in names:
+                tag = soup.find("meta", property=name) or soup.find("meta", attrs={"name": name})
+                if tag and tag.get("content"):
+                    return tag["content"].strip()
+            return None
+
+        return {
+            "source_name": get_meta("og:site_name"),
+            "published_at": get_meta("article:published_time", "pubdate", "publishdate", "date"),
+        }
+
     def _extract_content(self, html: str, url: str) -> str:
         content = trafilatura.extract(html, url=url, include_comments=False, include_tables=False, no_fallback=False)
         
@@ -92,12 +107,18 @@ class CrawlerService:
                 content = self._extract_content(html, final_url)
 
                 if len(content) > 30:
+                    metadata = self._extract_metadata(html)
                     return {
                         "title": self._extract_title(html),
                         "url": final_url,
                         "domain": urlparse(final_url).netloc,
                         "content": content,
+                        "source_name": metadata["source_name"],
+                        "published_at": metadata["published_at"],
                     }
+
+                # 본문이 없으면 JS 렌더링 사이트일 가능성이 높으므로 재시도 없이 종료
+                return None
             except Exception:
                 if attempt < retries: await asyncio.sleep(1)
         return None

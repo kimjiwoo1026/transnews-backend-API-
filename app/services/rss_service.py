@@ -37,10 +37,11 @@ async def get_news(keyword: str) -> list[dict]:
                 "link": google_link,
                 "article_link": article_link,
                 "original_url": article_link,
-                "source_name": source_name,
+                "source_name": (crawled.get("source_name") if crawled else None) or source_name,
                 "source_url": source_info.get("href") if isinstance(source_info, dict) else None,
-                "published": getattr(entry, "published", ""),
-                "content": crawled["content"] if crawled else ""
+                "published": (crawled.get("published_at") if crawled else None) or getattr(entry, "published", ""),
+                "content": crawled["content"] if crawled else "",
+                "language": "ko",
             }
 
         results = await asyncio.gather(*[process_entry(e) for e in feed.entries[:10]])
