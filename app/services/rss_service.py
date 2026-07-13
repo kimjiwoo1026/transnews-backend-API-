@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote
@@ -58,6 +59,15 @@ def _in_window(value: str | None, start_at: datetime | None, end_at: datetime | 
     return True
 
 
+def _build_search_query(keyword: str, start_at: datetime | None) -> str:
+    if not start_at:
+        return keyword
+    now = datetime.now(timezone.utc)
+    days_back = math.ceil((now - start_at).total_seconds() / 86400)
+    days_back = max(1, min(days_back, 30))
+    return f"{keyword} when:{days_back}d"
+
+
 async def get_news(
     keyword: str,
     *,
@@ -73,7 +83,8 @@ async def get_news(
     max_items = _clamp_limit(limit)
     start_at = _parse_datetime(published_after)
     end_at = _parse_datetime(published_before)
-    rss_url = f"https://news.google.com/rss/search?q={quote(cleaned_keyword)}&hl=ko&gl=KR&ceid=KR:ko"
+    search_query = _build_search_query(cleaned_keyword, start_at)
+    rss_url = f"https://news.google.com/rss/search?q={quote(search_query)}&hl=ko&gl=KR&ceid=KR:ko"
 
     semaphore = asyncio.Semaphore(15)
     results: list[dict] = []
