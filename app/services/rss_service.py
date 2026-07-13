@@ -8,11 +8,10 @@ from urllib.parse import quote
 import feedparser
 from googlenewsdecoder import gnewsdecoder
 
+from app.config import settings
 from app.services.crawler_service import crawler_service
 
 logger = logging.getLogger(__name__)
-
-NEWS_SOURCE_TIMEOUT = 16.0
 
 
 def decode_google_news_url(google_url: str) -> str:
@@ -74,7 +73,7 @@ async def get_news(
     limit: int = 10,
     published_after: str | None = None,
     published_before: str | None = None,
-    timeout_seconds: float = NEWS_SOURCE_TIMEOUT,
+    timeout_seconds: float = settings.NEWS_SOURCE_TIMEOUT,
 ) -> list[dict]:
     cleaned_keyword = keyword.strip()
     if not cleaned_keyword:
@@ -86,7 +85,7 @@ async def get_news(
     search_query = _build_search_query(cleaned_keyword, start_at)
     rss_url = f"https://news.google.com/rss/search?q={quote(search_query)}&hl=ko&gl=KR&ceid=KR:ko"
 
-    semaphore = asyncio.Semaphore(15)
+    semaphore = asyncio.Semaphore(settings.CRAWL_CONCURRENCY)
     results: list[dict] = []
 
     try:

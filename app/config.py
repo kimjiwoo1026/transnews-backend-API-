@@ -12,5 +12,9 @@ class Settings:
         self.LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
         self.NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "")
         self.NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "")
+        self.NEWS_SOURCE_TIMEOUT: float = float(os.getenv("NEWS_SOURCE_TIMEOUT", "16"))
+        self.LINK_DISCOVERY_TIMEOUT: float = float(os.getenv("LINK_DISCOVERY_TIMEOUT", "6"))
+        self.CRAWL_CONCURRENCY: int = int(os.getenv("CRAWL_CONCURRENCY", "15"))
+        self.MAX_NEWS_TIMEOUT_SECONDS: float = float(os.getenv("MAX_NEWS_TIMEOUT_SECONDS", "60"))
 
 settings = Settings()

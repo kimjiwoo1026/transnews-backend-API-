@@ -13,9 +13,6 @@ from app.services.crawler_service import crawler_service
 
 logger = logging.getLogger(__name__)
 
-NEWS_SOURCE_TIMEOUT = 16.0
-LINK_DISCOVERY_TIMEOUT = 6.0
-
 SEARCH_API_URL = "https://openapi.naver.com/v1/search/news.json"
 PAGE_SIZE = 100
 MAX_START = 1000
@@ -122,7 +119,7 @@ async def get_news(
     limit: int = 100,
     published_after: str | None = None,
     published_before: str | None = None,
-    timeout_seconds: float = NEWS_SOURCE_TIMEOUT,
+    timeout_seconds: float = settings.NEWS_SOURCE_TIMEOUT,
 ) -> list[dict]:
     cleaned_keyword = keyword.strip()
     if not cleaned_keyword:
@@ -132,19 +129,22 @@ async def get_news(
     end_at = _parse_datetime(published_before)
 
     start_time = time.monotonic()
-    discovery_deadline = start_time + min(LINK_DISCOVERY_TIMEOUT, timeout_seconds)
+    discovery_deadline = start_time + min(settings.LINK_DISCOVERY_TIMEOUT, timeout_seconds)
     links = await _search_naver_links(cleaned_keyword, limit, discovery_deadline, start_at, end_at)
 
     remaining = timeout_seconds - (time.monotonic() - start_time)
     if remaining <= 0 or not links:
         return []
 
-    semaphore = asyncio.Semaphore(15)
+    semaphore = asyncio.Semaphore(settings.CRAWL_CONCURRENCY)
     results: list[dict] = []
 
     async def process_item(item: dict):
         async with semaphore:
             crawled = await crawler_service.crawl_article(item["link"])
+        published = (crawled.get("published_at") if crawled else None) or item["pub_date"]
+        if not _in_window(published, start_at, end_at):
+            return
         results.append({
             "title": item["title"],
             "link": item["link"],
@@ -152,7 +152,7 @@ async def get_news(
             "original_url": item["link"],
             "source_name": (crawled.get("source_name") if crawled else None) or "Unknown",
             "source_url": None,
-            "published": (crawled.get("published_at") if crawled else None) or item["pub_date"],
+            "published": published,
             "content": (crawled.get("content") if crawled else "") or "",
             "language": "ko",
         })
