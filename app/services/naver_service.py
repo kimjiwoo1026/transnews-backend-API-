@@ -106,6 +106,7 @@ async def _search_naver_links(
                 results.append({
                     "title": _clean_text(item.get("title", "")),
                     "link": link,
+                    "pub_date": item.get("pubDate", ""),
                 })
                 if len(results) >= max_results:
                     break
@@ -151,7 +152,7 @@ async def get_news(
             "original_url": item["link"],
             "source_name": (crawled.get("source_name") if crawled else None) or "Unknown",
             "source_url": None,
-            "published": crawled.get("published_at") if crawled else "",
+            "published": (crawled.get("published_at") if crawled else None) or item["pub_date"],
             "content": (crawled.get("content") if crawled else "") or "",
             "language": "ko",
         })
