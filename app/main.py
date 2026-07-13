@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import news_router, pipeline_router, crawl_router
+from app.routers import news_router, pipeline_router, crawl_router, social_router
 from app.services.crawler_service import crawler_service
 
 logging.basicConfig(
@@ -33,6 +33,7 @@ app.add_middleware(
 app.include_router(news_router.router, prefix="/api/v1")
 app.include_router(pipeline_router.router, prefix="/api/v1")
 app.include_router(crawl_router.router, prefix="/api/v1")
+app.include_router(social_router.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
